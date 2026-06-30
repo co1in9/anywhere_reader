@@ -5,22 +5,23 @@ import { THEMES, THEME_KEYS } from '../reader/themes.js'
 import {
   loadPrefs,
   savePrefs,
-  loadLocation,
-  saveLocation,
+  loadProgress,
+  saveProgress,
 } from '../reader/storage.js'
 
 const props = defineProps({
-  file: { type: File, required: true },
+  // A library record: { id, name, title, author, blob }
+  book: { type: Object, required: true },
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'meta', 'progress'])
 
 const viewer = ref(null)
 const book = shallowRef(null)
 const rendition = shallowRef(null)
 
-const bookKey = computed(() => `${props.file.name}:${props.file.size}`)
+const bookKey = computed(() => props.book.id)
 
-const meta = reactive({ title: props.file.name, author: '' })
+const meta = reactive({ title: props.book.title || props.book.name, author: props.book.author || '' })
 const toc = ref([])
 const tocOpen = ref(true)
 const settingsOpen = ref(false)
@@ -104,7 +105,7 @@ async function setup() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const buffer = await props.file.arrayBuffer()
+    const buffer = await props.book.blob.arrayBuffer()
     const b = ePub(buffer)
     book.value = b
 
@@ -119,8 +120,8 @@ async function setup() {
 
     registerThemes()
 
-    const savedCfi = loadLocation(bookKey.value)
-    await r.display(savedCfi || undefined)
+    const saved = loadProgress(bookKey.value)
+    await r.display(saved?.cfi || undefined)
     applyTheme()
     loading.value = false
 
@@ -128,6 +129,7 @@ async function setup() {
     b.loaded.metadata.then((m) => {
       if (m?.title) meta.title = m.title
       if (m?.creator) meta.author = m.creator
+      emit('meta', { id: bookKey.value, title: m?.title, author: m?.creator })
     })
 
     // Table of contents
@@ -140,13 +142,25 @@ async function setup() {
       .then(() => b.locations.generate(1650))
       .then(() => {
         locationsReady.value = true
-        updateProgress(r.currentLocation())
+        const loc = r.currentLocation()
+        updateProgress(loc)
+        if (loc?.start?.cfi) {
+          saveProgress(bookKey.value, {
+            cfi: loc.start.cfi,
+            percentage: progress.value,
+          })
+          emit('progress', { id: bookKey.value })
+        }
       })
       .catch((e) => console.warn('locations generate failed', e))
 
     r.on('relocated', (location) => {
-      saveLocation(bookKey.value, location.start.cfi)
       updateProgress(location)
+      saveProgress(bookKey.value, {
+        cfi: location.start.cfi,
+        percentage: progress.value,
+      })
+      emit('progress', { id: bookKey.value, cfi: location.start.cfi, percentage: progress.value })
       const chap = findChapter(location.start.href)
       if (chap) currentChapter.value = chap
     })
@@ -207,7 +221,7 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => props.file,
+  () => props.book.id,
   () => {
     try {
       rendition.value?.destroy()
