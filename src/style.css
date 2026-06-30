@@ -16,6 +16,13 @@ body,
     Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
 
+/* E-ink mode: kill transitions/animations to avoid screen ghosting */
+.eink-mode,
+.eink-mode * {
+  transition: none !important;
+  animation: none !important;
+}
+
 /* Thin custom scrollbar for the table of contents */
 .toc-scroll::-webkit-scrollbar {
   width: 6px;

@@ -221,7 +221,7 @@ watch(
 </script>
 
 <template>
-  <div class="flex h-full flex-col" :class="theme.app">
+  <div class="flex h-full flex-col" :class="[theme.app, prefs.theme === 'eink' ? 'eink-mode' : '']">
     <!-- Top bar -->
     <header
       class="flex items-center gap-2 border-b px-3 py-2"
@@ -370,7 +370,7 @@ watch(
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="15 18 9 12 15 6" /></svg>
       </button>
       <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-300/40">
-        <div class="h-full rounded-full bg-violet-500 transition-all" :style="{ width: progress + '%' }"></div>
+        <div class="h-full rounded-full transition-all" :class="theme.accent" :style="{ width: progress + '%' }"></div>
       </div>
       <button class="rounded p-1 transition-colors" :class="theme.hover" title="下一页" @click="next">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="9 18 15 12 9 6" /></svg>
