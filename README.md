@@ -26,6 +26,13 @@ bun run build      # 输出到 dist/
 bun run preview    # 本地预览生产构建
 ```
 
+## 部署
+
+推送到 `main` 分支会通过 GitHub Actions 自动构建并发布到 GitHub Pages：
+
+- 在线访问：<https://co1in9.github.io/anywhere_reader/>
+- 工作流：`.github/workflows/deploy.yml`
+
 ## 技术栈
 
 | 用途        | 选型              |
