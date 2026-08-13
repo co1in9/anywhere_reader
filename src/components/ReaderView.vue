@@ -2,6 +2,7 @@
 import { ref, reactive, shallowRef, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue'
 import ePub from 'epubjs'
 import { THEMES, THEME_KEYS } from '../reader/themes.js'
+import { FONTS, FONT_KEYS, getFont, fontFaceCss, ensureFontLoaded } from '../reader/fonts.js'
 import {
   loadPrefs,
   savePrefs,
@@ -51,17 +52,52 @@ function registerThemes() {
   }
 }
 
+// The book's own stylesheet usually sets font-family on inner elements, so the
+// chosen font is forced with a stylesheet injected into the epub.js iframe
+// (which also carries the @font-face rules for bundled fonts).
+function fontCss() {
+  if (prefs.font === 'system') return ''
+  return `${fontFaceCss(prefs.font)}
+body, body * { font-family: ${getFont(prefs.font).family} !important; }`
+}
+
+function applyFontToContents(contents) {
+  const doc = contents?.document
+  if (!doc?.head) return
+  let style = doc.getElementById(FONT_STYLE_ID)
+  if (!style) {
+    style = doc.createElement('style')
+    style.id = FONT_STYLE_ID
+    doc.head.appendChild(style)
+  }
+  style.textContent = fontCss()
+}
+
+function applyFont() {
+  for (const contents of rendition.value?.getContents() || []) {
+    applyFontToContents(contents)
+  }
+}
+
 function applyTheme() {
   const r = rendition.value
   if (!r) return
   r.themes.select(prefs.theme)
   r.themes.fontSize(`${prefs.fontSize}%`)
-  savePrefs({ theme: prefs.theme, fontSize: prefs.fontSize })
+  savePrefs({ theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize })
 }
 
 function setTheme(key) {
   prefs.theme = key
   applyTheme()
+}
+
+async function setFont(key) {
+  prefs.font = key
+  applyTheme()
+  applyFont()
+  await ensureFontLoaded(key)
+  applyFont()
 }
 
 function changeFont(delta) {
@@ -100,6 +136,7 @@ function onKeydown(e) {
 }
 
 let resizeObserver = null
+const FONT_STYLE_ID = 'anywhere-reader-font'
 
 async function setup() {
   loading.value = true
@@ -119,6 +156,8 @@ async function setup() {
     rendition.value = r
 
     registerThemes()
+    r.hooks.content.register(applyFontToContents)
+    ensureFontLoaded(prefs.font).then(applyFont)
 
     const saved = loadProgress(bookKey.value)
     await r.display(saved?.cfi || undefined)
@@ -286,6 +325,20 @@ watch(
               @click="setTheme(key)"
             >
               {{ THEMES[key].label }}
+            </button>
+          </div>
+
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide" :class="theme.muted">字体</p>
+          <div class="mb-4 grid grid-cols-2 gap-2">
+            <button
+              v-for="key in FONT_KEYS"
+              :key="key"
+              class="rounded-lg border px-2 py-1.5 text-sm transition-colors"
+              :class="prefs.font === key ? 'border-violet-500 ' + theme.active : theme.border + ' ' + theme.hover"
+              :style="{ fontFamily: FONTS[key].family }"
+              @click="setFont(key)"
+            >
+              {{ FONTS[key].label }}
             </button>
           </div>
 
