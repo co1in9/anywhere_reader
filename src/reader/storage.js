@@ -8,6 +8,7 @@ const WEBDAV_KEY = 'anywhere-reader:webdav'
 
 const DEFAULT_PREFS = {
   theme: 'light',
+  font: 'system',
   fontSize: 100, // percent
 }
 
