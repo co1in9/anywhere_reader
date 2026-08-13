@@ -2,9 +2,10 @@
 """Regenerate the bundled PingFang SC webfonts in `src/assets/fonts/`.
 
 Source: https://github.com/ShmilyHTT/PingFang (PingFang-Regular.ttf / PingFang-Bold.ttf,
-~11 MB each). The full font covers ~30k codepoints; it is subset to the GB2312
-character set (6763 hanzi + ASCII + CJK punctuation) so each weight compresses
-to well under 1 MB, which keeps the lazy download acceptable on mobile.
+~11 MB each). The full font covers ~30k codepoints; it is subset to the GBK
+character set (~21.8k chars: simplified + traditional hanzi, ASCII, CJK
+punctuation) so each weight compresses to ~2.7 MB instead of ~5 MB, while still
+covering traditional-Chinese books.
 
 Usage:
     pip install fonttools brotli
@@ -18,12 +19,12 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "src" / "assets" / "fonts"
 WEIGHTS = ("Regular", "Bold")
 
 
-def gb2312_charset() -> str:
+def gbk_charset() -> str:
     chars = {chr(c) for c in range(0x20, 0x7F)}
-    for b1 in range(0xA1, 0xF8):
-        for b2 in range(0xA1, 0xFF):
+    for b1 in range(0x81, 0xFF):
+        for b2 in range(0x40, 0xFF):
             try:
-                chars.add(bytes([b1, b2]).decode("gb2312"))
+                chars.add(bytes([b1, b2]).decode("gbk"))
             except UnicodeDecodeError:
                 pass
     return "".join(sorted(chars))
@@ -36,7 +37,7 @@ def main() -> int:
     src = Path(sys.argv[1])
     charset = OUT_DIR / "charset.txt"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    charset.write_text(gb2312_charset(), encoding="utf-8")
+    charset.write_text(gbk_charset(), encoding="utf-8")
     try:
         for weight in WEIGHTS:
             subprocess.run(

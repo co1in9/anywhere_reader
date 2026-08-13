@@ -20,7 +20,7 @@
 阅读界面右上角「阅读设置」中可切换正文字体。除系统字体外内置了 **苹方（PingFang SC）**：
 
 - 字体文件来自 <https://github.com/ShmilyHTT/PingFang>，版权归 Apple 所有，仅供个人学习使用
-- 为控制体积，仅内置 Regular / Bold 两个字重，并按 GB2312 字符集做了子集化（每个字重 < 1 MB，woff2）
+- 为控制体积，仅内置 Regular / Bold 两个字重，并按 GBK 字符集做了子集化（简繁均覆盖，每个字重约 2.7 MB，woff2）
 - 字体文件仅在用户选择「苹方」时才会下载，不影响首屏加载
 - 重新生成子集：`python tools/subset-fonts.py /path/to/PingFang`（需要 `fonttools` + `brotli`）
 
