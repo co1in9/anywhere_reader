@@ -31,6 +31,9 @@ const errorMsg = ref('')
 
 const progress = ref(0) // 0..100
 const currentChapter = ref('')
+const currentHref = ref('')
+const tocEl = ref(null)
+const tocItemEls = ref([])
 const locationsReady = ref(false)
 
 const prefs = reactive(loadPrefs())
@@ -141,6 +144,7 @@ const FONT_STYLE_ID = 'anywhere-reader-font'
 async function setup() {
   loading.value = true
   errorMsg.value = ''
+  currentHref.value = ''
   try {
     const buffer = await props.book.blob.arrayBuffer()
     const b = ePub(buffer)
@@ -173,6 +177,7 @@ async function setup() {
 
     // Table of contents
     b.loaded.navigation.then((nav) => {
+      tocItemEls.value = []
       toc.value = flattenToc(nav.toc || [])
     })
 
@@ -200,6 +205,7 @@ async function setup() {
         percentage: progress.value,
       })
       emit('progress', { id: bookKey.value, cfi: location.start.cfi, percentage: progress.value })
+      currentHref.value = location.start.href || ''
       const chap = findChapter(location.start.href)
       if (chap) currentChapter.value = chap
     })
@@ -231,17 +237,36 @@ function updateProgress(location) {
   }
 }
 
-function findChapter(href) {
-  if (!href) return ''
+function tocIndexOf(href) {
+  if (!href) return -1
   const base = href.split('#')[0]
-  const match = toc.value.find((t) => {
+  return toc.value.findIndex((t) => {
     const tBase = (t.href || '').split('#')[0]
     return tBase && (tBase === base || base.endsWith(tBase) || tBase.endsWith(base))
   })
-  return match ? match.label : ''
 }
 
-const activeHref = computed(() => currentChapter.value)
+function findChapter(href) {
+  const i = tocIndexOf(href)
+  return i >= 0 ? toc.value[i].label : ''
+}
+
+const activeIndex = computed(() => tocIndexOf(currentHref.value))
+
+// Scroll the sidebar itself rather than using scrollIntoView, which would also
+// scroll ancestor containers.
+function scrollActiveIntoView() {
+  const container = tocEl.value
+  const el = tocItemEls.value[activeIndex.value]
+  if (!container || !el) return
+  const target = el.offsetTop - container.clientHeight / 2 + el.offsetHeight / 2
+  const max = Math.max(0, container.scrollHeight - container.clientHeight)
+  container.scrollTop = Math.max(0, Math.min(target, max))
+}
+
+watch([activeIndex, tocOpen], () => {
+  if (tocOpen.value) nextTick(scrollActiveIntoView)
+})
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
@@ -368,6 +393,7 @@ watch(
       <!-- TOC sidebar -->
       <aside
         v-show="tocOpen"
+        ref="tocEl"
         class="toc-scroll w-64 shrink-0 overflow-y-auto border-r"
         :class="[theme.border, theme.surface]"
       >
@@ -376,10 +402,11 @@ watch(
           <button
             v-for="(item, i) in toc"
             :key="i"
+            :ref="(el) => (tocItemEls[i] = el)"
             class="block w-full truncate px-4 py-2 text-left text-sm transition-colors"
             :class="[
               theme.hover,
-              activeHref === item.label ? theme.active : '',
+              activeIndex === i ? theme.active : '',
             ]"
             :style="{ paddingLeft: 16 + item.depth * 14 + 'px' }"
             :title="item.label"
