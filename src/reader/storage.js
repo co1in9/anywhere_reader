@@ -10,6 +10,7 @@ const DEFAULT_PREFS = {
   theme: 'light',
   font: 'system',
   fontSize: 100, // percent
+  layout: 'double', // 'double' (spread when wide enough) | 'single'
 }
 
 export const DEFAULT_WEBDAV = {

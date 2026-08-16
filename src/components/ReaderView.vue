@@ -39,6 +39,21 @@ const locationsReady = ref(false)
 const prefs = reactive(loadPrefs())
 const theme = computed(() => THEMES[prefs.theme] || THEMES.light)
 
+const LAYOUTS = [
+  { key: 'single', label: '单页' },
+  { key: 'double', label: '双页' },
+]
+
+// epub.js spreads pages only when the viewport is wide enough, so '双页' maps to
+// 'auto' rather than 'always'.
+function spreadMode() {
+  return prefs.layout === 'single' ? 'none' : 'auto'
+}
+
+function persistPrefs() {
+  savePrefs({ theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize, layout: prefs.layout })
+}
+
 function registerThemes() {
   const r = rendition.value
   if (!r) return
@@ -87,7 +102,34 @@ function applyTheme() {
   if (!r) return
   r.themes.select(prefs.theme)
   r.themes.fontSize(`${prefs.fontSize}%`)
-  savePrefs({ theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize })
+  persistPrefs()
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()))
+}
+
+// Changing the spread re-lays out the views and drops the current position. The
+// iframes reflow asynchronously after the new column width is applied, so the
+// location is restored once the layout has settled — twice, since displaying
+// itself triggers another reflow.
+async function setLayout(key) {
+  if (prefs.layout === key) return
+  prefs.layout = key
+  persistPrefs()
+  const r = rendition.value
+  if (!r) return
+  const cfi = r.currentLocation()?.start?.cfi
+  try {
+    r.spread(spreadMode())
+    if (!cfi) return
+    await nextFrame()
+    await r.display(cfi)
+    await nextFrame()
+    await r.display(cfi)
+  } catch (e) {
+    console.error('layout change failed', e)
+  }
 }
 
 function setTheme(key) {
@@ -154,7 +196,7 @@ async function setup() {
       width: '100%',
       height: '100%',
       flow: 'paginated',
-      spread: 'auto',
+      spread: spreadMode(),
       allowScriptedContent: true,
     })
     rendition.value = r
@@ -364,6 +406,19 @@ watch(
               @click="setFont(key)"
             >
               {{ FONTS[key].label }}
+            </button>
+          </div>
+
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide" :class="theme.muted">布局</p>
+          <div class="mb-4 flex gap-2">
+            <button
+              v-for="item in LAYOUTS"
+              :key="item.key"
+              class="flex-1 rounded-lg border px-2 py-1.5 text-sm transition-colors"
+              :class="prefs.layout === item.key ? 'border-violet-500 ' + theme.active : theme.border + ' ' + theme.hover"
+              @click="setLayout(item.key)"
+            >
+              {{ item.label }}
             </button>
           </div>
 
