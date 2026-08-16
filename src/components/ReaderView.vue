@@ -105,8 +105,14 @@ function applyTheme() {
   persistPrefs()
 }
 
-// Switching the spread re-lays out the views, which drops the current position,
-// so the location is restored afterwards.
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()))
+}
+
+// Changing the spread re-lays out the views and drops the current position. The
+// iframes reflow asynchronously after the new column width is applied, so the
+// location is restored once the layout has settled — twice, since displaying
+// itself triggers another reflow.
 async function setLayout(key) {
   if (prefs.layout === key) return
   prefs.layout = key
@@ -116,8 +122,11 @@ async function setLayout(key) {
   const cfi = r.currentLocation()?.start?.cfi
   try {
     r.spread(spreadMode())
-    r.resize()
-    if (cfi) await r.display(cfi)
+    if (!cfi) return
+    await nextFrame()
+    await r.display(cfi)
+    await nextFrame()
+    await r.display(cfi)
   } catch (e) {
     console.error('layout change failed', e)
   }
