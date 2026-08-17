@@ -10,6 +10,7 @@ const DEFAULT_PREFS = {
   theme: 'light',
   font: 'system',
   fontSize: 100, // percent
+  lineHeight: 1.7, // unitless multiplier
   layout: 'double', // 'double' (spread when wide enough) | 'single'
 }
 

@@ -51,7 +51,13 @@ function spreadMode() {
 }
 
 function persistPrefs() {
-  savePrefs({ theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize, layout: prefs.layout })
+  savePrefs({
+    theme: prefs.theme,
+    font: prefs.font,
+    fontSize: prefs.fontSize,
+    lineHeight: prefs.lineHeight,
+    layout: prefs.layout,
+  })
 }
 
 function registerThemes() {
@@ -61,7 +67,6 @@ function registerThemes() {
     r.themes.register(key, {
       body: {
         ...THEMES[key].content.body,
-        'line-height': '1.7',
         padding: '0 8px !important',
       },
       a: THEMES[key].content.a,
@@ -70,30 +75,37 @@ function registerThemes() {
   }
 }
 
-// The book's own stylesheet usually sets font-family on inner elements, so the
-// chosen font is forced with a stylesheet injected into the epub.js iframe
-// (which also carries the @font-face rules for bundled fonts).
-function fontCss() {
-  if (prefs.font === 'system') return ''
-  return `${fontFaceCss(prefs.font)}
-body, body * { font-family: ${getFont(prefs.font).family} !important; }`
+// The book's own stylesheet usually sets font-family and line-height on inner
+// elements, so both are forced with a stylesheet injected into the epub.js
+// iframe (which also carries the @font-face rules for bundled fonts).
+function contentCss() {
+  const rules = [
+    `body, body p, body div, body li, body blockquote { line-height: ${prefs.lineHeight} !important; }`,
+  ]
+  if (prefs.font !== 'system') {
+    rules.unshift(
+      fontFaceCss(prefs.font),
+      `body, body * { font-family: ${getFont(prefs.font).family} !important; }`,
+    )
+  }
+  return rules.join('\n')
 }
 
-function applyFontToContents(contents) {
+function applyContentCssTo(contents) {
   const doc = contents?.document
   if (!doc?.head) return
-  let style = doc.getElementById(FONT_STYLE_ID)
+  let style = doc.getElementById(CONTENT_STYLE_ID)
   if (!style) {
     style = doc.createElement('style')
-    style.id = FONT_STYLE_ID
+    style.id = CONTENT_STYLE_ID
     doc.head.appendChild(style)
   }
-  style.textContent = fontCss()
+  style.textContent = contentCss()
 }
 
-function applyFont() {
+function applyContentCss() {
   for (const contents of rendition.value?.getContents() || []) {
-    applyFontToContents(contents)
+    applyContentCssTo(contents)
   }
 }
 
@@ -109,27 +121,31 @@ function nextFrame() {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()))
 }
 
-// Changing the spread re-lays out the views and drops the current position. The
-// iframes reflow asynchronously after the new column width is applied, so the
-// location is restored once the layout has settled — twice, since displaying
-// itself triggers another reflow.
-async function setLayout(key) {
-  if (prefs.layout === key) return
-  prefs.layout = key
-  persistPrefs()
+// Re-laying out the views drops the current position. The iframes reflow
+// asynchronously after the new styles are applied, so the location is restored
+// once the layout has settled — twice, since displaying itself triggers another
+// reflow.
+async function reflow(mutate) {
   const r = rendition.value
   if (!r) return
   const cfi = r.currentLocation()?.start?.cfi
   try {
-    r.spread(spreadMode())
+    mutate(r)
     if (!cfi) return
     await nextFrame()
     await r.display(cfi)
     await nextFrame()
     await r.display(cfi)
   } catch (e) {
-    console.error('layout change failed', e)
+    console.error('reflow failed', e)
   }
+}
+
+async function setLayout(key) {
+  if (prefs.layout === key) return
+  prefs.layout = key
+  persistPrefs()
+  await reflow((r) => r.spread(spreadMode()))
 }
 
 function setTheme(key) {
@@ -140,14 +156,22 @@ function setTheme(key) {
 async function setFont(key) {
   prefs.font = key
   applyTheme()
-  applyFont()
+  applyContentCss()
   await ensureFontLoaded(key)
-  applyFont()
+  applyContentCss()
 }
 
 function changeFont(delta) {
   prefs.fontSize = Math.min(200, Math.max(60, prefs.fontSize + delta))
   applyTheme()
+}
+
+async function changeLineHeight(delta) {
+  const next = Math.min(2.6, Math.max(1.1, Math.round((prefs.lineHeight + delta) * 10) / 10))
+  if (next === prefs.lineHeight) return
+  prefs.lineHeight = next
+  persistPrefs()
+  await reflow(applyContentCss)
 }
 
 function flattenToc(items, depth = 0, out = []) {
@@ -181,7 +205,7 @@ function onKeydown(e) {
 }
 
 let resizeObserver = null
-const FONT_STYLE_ID = 'anywhere-reader-font'
+const CONTENT_STYLE_ID = 'anywhere-reader-content'
 
 async function setup() {
   loading.value = true
@@ -202,8 +226,8 @@ async function setup() {
     rendition.value = r
 
     registerThemes()
-    r.hooks.content.register(applyFontToContents)
-    ensureFontLoaded(prefs.font).then(applyFont)
+    r.hooks.content.register(applyContentCssTo)
+    ensureFontLoaded(prefs.font).then(applyContentCss)
 
     const saved = loadProgress(bookKey.value)
     await r.display(saved?.cfi || undefined)
@@ -423,10 +447,17 @@ watch(
           </div>
 
           <p class="mb-2 text-xs font-semibold uppercase tracking-wide" :class="theme.muted">字号</p>
-          <div class="flex items-center gap-2">
+          <div class="mb-4 flex items-center gap-2">
             <button class="flex-1 rounded-lg border py-1.5 text-lg transition-colors" :class="[theme.border, theme.hover]" @click="changeFont(-10)">A−</button>
             <span class="w-14 text-center text-sm tabular-nums">{{ prefs.fontSize }}%</span>
             <button class="flex-1 rounded-lg border py-1.5 text-lg transition-colors" :class="[theme.border, theme.hover]" @click="changeFont(10)">A+</button>
+          </div>
+
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide" :class="theme.muted">行距</p>
+          <div class="flex items-center gap-2">
+            <button class="flex-1 rounded-lg border py-1.5 text-lg transition-colors" :class="[theme.border, theme.hover]" @click="changeLineHeight(-0.1)">−</button>
+            <span class="w-14 text-center text-sm tabular-nums">{{ prefs.lineHeight.toFixed(1) }}</span>
+            <button class="flex-1 rounded-lg border py-1.5 text-lg transition-colors" :class="[theme.border, theme.hover]" @click="changeLineHeight(0.1)">+</button>
           </div>
         </div>
       </div>
