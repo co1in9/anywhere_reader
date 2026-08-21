@@ -6,6 +6,7 @@ import SettingsModal from './components/SettingsModal.vue'
 import { hashBlob, putBook, getBook, deleteBook, listBooks } from './reader/db.js'
 import { loadAllProgress, loadWebDAVConfig, saveWebDAVConfig } from './reader/storage.js'
 import { syncAll, pushProgress } from './reader/sync.js'
+import { onLaunchFiles, updateReady, applyUpdate } from './reader/pwa.js'
 
 const books = ref([])
 const progress = ref({})
@@ -25,6 +26,7 @@ function webdavReady() {
 }
 
 onMounted(async () => {
+  onLaunchFiles(handleUpload)
   await refreshLibrary()
   if (webdavReady() && webdav.autoSync) {
     doSync()
@@ -149,5 +151,14 @@ function saveSettings(cfg) {
       @save="saveSettings"
       @close="showSettings = false"
     />
+
+    <div
+      v-if="updateReady"
+      class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg"
+    >
+      <span>有新版本可用</span>
+      <button class="rounded-full bg-violet-500 px-3 py-1 font-medium" @click="applyUpdate()">刷新</button>
+      <button class="text-zinc-400" title="稍后" @click="updateReady = false">✕</button>
+    </div>
   </div>
 </template>
