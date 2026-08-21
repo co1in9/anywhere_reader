@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { canInstall, promptInstall } from '../reader/pwa.js'
 
 const props = defineProps({
   books: { type: Array, default: () => [] },
@@ -68,6 +69,18 @@ function pct(id) {
 
       <span v-if="sync.message" class="hidden text-sm text-zinc-500 sm:inline">{{ sync.message }}</span>
       <span v-if="sync.error" class="hidden text-sm text-red-500 sm:inline">{{ sync.error }}</span>
+
+      <button
+        v-if="canInstall"
+        class="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-violet-700"
+        title="安装为应用"
+        @click="promptInstall()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        安装
+      </button>
 
       <button
         class="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-zinc-100 disabled:opacity-50"

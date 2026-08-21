@@ -14,6 +14,7 @@
 - 书架：上传的 EPUB 保存在浏览器（IndexedDB），刷新后无需重新上传
 - 自动记忆每本书的阅读位置与偏好设置（localStorage）
 - **WebDAV 同步**：配置自己的 WebDAV 服务器后，可在多设备间同步书籍与阅读进度（详见下文）
+- **PWA**：可安装到桌面 / 主屏幕，离线可用（详见下文）
 
 ## 字体
 
@@ -43,6 +44,23 @@
 ```
 
 > 注意：因为是纯前端应用，浏览器会发起跨域请求，WebDAV 服务器需开启 CORS（允许 `PROPFIND/MKCOL/PUT/GET` 方法及 `Authorization`、`Depth` 请求头）。
+
+## PWA（安装到桌面 / 离线使用）
+
+应用提供 Web App Manifest 与 Service Worker，可作为独立应用安装：
+
+- Chrome / Edge：书架右上角出现「安装」按钮，或使用地址栏的安装图标
+- iOS Safari：分享 → 添加到主屏幕
+- 离线可用：应用外壳与构建产物由 Service Worker 缓存，书籍本身一直存在 IndexedDB 中
+- 有新版本部署时，页面底部会提示「有新版本可用」，点击刷新即可更新
+- 系统「打开方式」选择本应用打开 `.epub` 时会直接进入阅读（支持 File Handling API 的浏览器）
+
+图标由 `public/icon.svg`、`public/icon-maskable.svg` 生成：
+
+```bash
+pip install cairosvg
+python tools/gen-icons.py
+```
 
 ## 开发
 
