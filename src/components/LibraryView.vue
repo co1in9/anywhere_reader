@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { canInstall, promptInstall } from '../reader/pwa.js'
+import logoUrl from '../assets/logo.png'
 
 const props = defineProps({
   books: { type: Array, default: () => [] },
@@ -60,11 +61,7 @@ function pct(id) {
   >
     <!-- Top bar -->
     <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur">
-      <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-        </svg>
-      </div>
+      <img :src="logoUrl" alt="Anywhere Reader" class="h-9 w-9 rounded-xl" />
       <h1 class="flex-1 text-lg font-bold tracking-tight">Anywhere Reader</h1>
 
       <span v-if="sync.message" class="hidden text-sm text-zinc-500 sm:inline">{{ sync.message }}</span>
