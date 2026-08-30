@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { canInstall, promptInstall } from '../reader/pwa.js'
 import logoUrl from '../assets/logo.png'
 
@@ -49,6 +49,33 @@ function onChange(e) {
 function pct(id) {
   return Math.round(props.progress[id]?.percentage || 0)
 }
+
+const coverCache = new Map()
+
+function coverOf(book) {
+  if (!book.cover) {
+    if (coverCache.has(book.id)) {
+      URL.revokeObjectURL(coverCache.get(book.id).url)
+      coverCache.delete(book.id)
+    }
+    return null
+  }
+  const cached = coverCache.get(book.id)
+  if (cached && cached.size === book.cover.size && cached.type === book.cover.type) {
+    return cached.url
+  }
+  if (cached) URL.revokeObjectURL(cached.url)
+  const url = URL.createObjectURL(book.cover)
+  coverCache.set(book.id, { size: book.cover.size, type: book.cover.type, url })
+  return url
+}
+
+onBeforeUnmount(() => {
+  for (const { url } of coverCache.values()) {
+    URL.revokeObjectURL(url)
+  }
+  coverCache.clear()
+})
 </script>
 
 <template>
@@ -141,8 +168,19 @@ function pct(id) {
           class="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md"
           @click="emit('open', book.id)"
         >
-          <div class="flex aspect-[3/4] items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600 p-3 text-center">
-            <span class="line-clamp-5 text-sm font-semibold text-white">{{ book.title }}</span>
+          <div class="relative aspect-[3/4] overflow-hidden bg-zinc-100">
+            <img
+              v-if="coverOf(book)"
+              :src="coverOf(book)"
+              class="h-full w-full object-cover"
+              alt="封面"
+            />
+            <div
+              v-else
+              class="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600 p-3 text-center"
+            >
+              <span class="line-clamp-5 text-sm font-semibold text-white">{{ book.title }}</span>
+            </div>
           </div>
           <div class="p-2">
             <p class="truncate text-sm font-medium" :title="book.title">{{ book.title }}</p>

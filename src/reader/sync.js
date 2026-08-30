@@ -14,6 +14,7 @@ import {
   putJSON,
   getJSON,
 } from './webdav.js'
+import { extFromMime } from './cover.js'
 import { listBooks, getBook, putBook } from './db.js'
 import { loadAllProgress, saveAllProgress } from './storage.js'
 
@@ -81,14 +82,15 @@ export async function syncAll(cfg, { onStatus } = {}) {
       record.blob,
       'application/epub+zip'
     )
+    const { cover, ...rest } = meta
     await putJSON(cfg, `meta/${meta.id}.json`, {
-      id: meta.id,
-      name: meta.name,
-      title: meta.title,
-      author: meta.author,
-      size: meta.size,
-      addedAt: meta.addedAt,
+      ...rest,
+      cover: !!cover,
     })
+    if (cover) {
+      const ext = extFromMime(meta.coverMime)
+      await putFile(cfg, `covers/${meta.id}.${ext}`, cover, meta.coverMime)
+    }
     pushed++
   }
 
@@ -99,15 +101,31 @@ export async function syncAll(cfg, { onStatus } = {}) {
     const blob = await getFile(cfg, `books/${id}.epub`)
     if (!blob) continue
     const meta = (await getJSON(cfg, `meta/${id}.json`)) || {}
-    await putBook({
+    const record = {
       id,
       name: meta.name || `${id}.epub`,
       title: meta.title || meta.name || id,
       author: meta.author || '',
       size: meta.size || blob.size,
       addedAt: meta.addedAt || Date.now(),
+      cover: undefined,
+      coverMime: meta.coverMime,
+      coverFailed: meta.coverFailed || false,
       blob,
-    })
+    }
+    if (meta.cover && meta.coverMime) {
+      try {
+        const ext = extFromMime(meta.coverMime)
+        const coverBlob = await getFile(cfg, `covers/${id}.${ext}`)
+        if (coverBlob) {
+          const buffer = await coverBlob.arrayBuffer()
+          record.cover = new Blob([buffer], { type: meta.coverMime })
+        }
+      } catch (e) {
+        console.warn('download cover failed', id, e)
+      }
+    }
+    await putBook(record)
     pulled++
   }
 

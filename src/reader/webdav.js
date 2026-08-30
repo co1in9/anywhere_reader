@@ -75,6 +75,7 @@ export async function ensureDirs(cfg) {
   await mkcol(cfg, buildUrl(cfg))
   await mkcol(cfg, buildUrl(cfg, 'books'))
   await mkcol(cfg, buildUrl(cfg, 'meta'))
+  await mkcol(cfg, buildUrl(cfg, 'covers'))
 }
 
 export async function putFile(cfg, path, blob, contentType) {

@@ -4,6 +4,7 @@ import LibraryView from './components/LibraryView.vue'
 import ReaderView from './components/ReaderView.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import { hashBlob, putBook, getBook, deleteBook, listBooks } from './reader/db.js'
+import { extractCover } from './reader/cover.js'
 import { loadAllProgress, loadWebDAVConfig, saveWebDAVConfig } from './reader/storage.js'
 import { syncAll, pushProgress } from './reader/sync.js'
 import { onLaunchFiles, updateReady, applyUpdate } from './reader/pwa.js'
@@ -21,6 +22,34 @@ async function refreshLibrary() {
   progress.value = loadAllProgress()
 }
 
+async function extractAndStoreCover(id) {
+  const record = await getBook(id)
+  if (!record || record.cover || record.coverFailed) return record
+  const cover = await extractCover(record.blob)
+  if (cover) {
+    record.cover = cover
+    record.coverMime = cover.type
+    record.coverFailed = false
+  } else {
+    record.cover = undefined
+    record.coverMime = ''
+    record.coverFailed = true
+  }
+  await putBook(record)
+  return record
+}
+
+async function loadMissingCovers() {
+  const metas = await listBooks()
+  let changed = false
+  for (const meta of metas) {
+    if (meta.cover || meta.coverFailed) continue
+    await extractAndStoreCover(meta.id)
+    changed = true
+  }
+  if (changed) await refreshLibrary()
+}
+
 function webdavReady() {
   return !!webdav.url
 }
@@ -28,6 +57,7 @@ function webdavReady() {
 onMounted(async () => {
   onLaunchFiles(handleUpload)
   await refreshLibrary()
+  loadMissingCovers().catch(() => {})
   if (webdavReady() && webdav.autoSync) {
     doSync()
   }
@@ -50,6 +80,7 @@ async function handleUpload(file) {
     if (webdavReady() && webdav.autoSync) doSync()
   }
   openBookById(id)
+  extractAndStoreCover(id).then(() => refreshLibrary()).catch(() => {})
 }
 
 async function openBookById(id) {
@@ -106,6 +137,7 @@ async function doSync() {
       { onStatus: (m) => (sync.message = m) }
     )
     await refreshLibrary()
+    loadMissingCovers().catch(() => {})
     sync.message = `同步完成：上传 ${res.pushed}，下载 ${res.pulled}`
   } catch (e) {
     sync.error = '同步失败：' + (e?.message || e)
