@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
   >
     <!-- Top bar -->
     <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur">
-      <img :src="logoUrl" alt="Anywhere Reader" class="h-9 w-9 rounded-xl" />
+      <img :src="logoUrl" alt="Anywhere Reader" class="h-9 w-9 object-contain" />
       <h1 class="flex-1 text-lg font-bold tracking-tight">Anywhere Reader</h1>
 
       <span v-if="sync.message" class="hidden text-sm text-zinc-500 sm:inline">{{ sync.message }}</span>

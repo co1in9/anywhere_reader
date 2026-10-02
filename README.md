@@ -55,10 +55,10 @@
 - 有新版本部署时，页面底部会提示「有新版本可用」，点击刷新即可更新
 - 系统「打开方式」选择本应用打开 `.epub` 时会直接进入阅读（支持 File Handling API 的浏览器）
 
-图标由 `public/icon.svg`、`public/icon-maskable.svg` 生成：
+所有图标由 `public/logo-transparent.png` 统一生成。favicon、书架 Logo 和普通 PWA 图标使用透明背景；maskable 图标和 Apple 主屏幕图标使用完整白色背景（无预设圆角）。maskable 图案留在中央安全区域内：
 
 ```bash
-pip install cairosvg
+pip install Pillow
 python tools/gen-icons.py
 ```
 

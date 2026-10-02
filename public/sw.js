@@ -5,7 +5,7 @@
  * content-hashed and therefore unknown here, so assets are cached lazily as
  * they are requested; only the app shell is pre-cached.
  */
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL_CACHE = `anywhere-reader-shell-${VERSION}`
 const ASSET_CACHE = `anywhere-reader-assets-${VERSION}`
 const SHELL_URL = new URL('./index.html', self.registration.scope).pathname
