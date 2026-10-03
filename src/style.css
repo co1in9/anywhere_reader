@@ -31,3 +31,9 @@ body,
   background: rgba(120, 120, 120, 0.4);
   border-radius: 3px;
 }
+
+.reader-header { padding-top: max(.5rem, env(safe-area-inset-top)); }
+.reader-footer { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+button, input, select { touch-action: manipulation; }
+button:focus-visible, select:focus-visible, input:focus-visible, [role="button"]:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
+@media (pointer: coarse) { .reader-header button, .reader-footer button { min-height: 44px; min-width: 36px; } }

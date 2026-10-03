@@ -29,14 +29,24 @@ function authHeaders(cfg) {
 }
 
 async function dav(cfg, method, url, { headers = {}, body } = {}) {
-  return fetch(url, {
-    method,
-    headers: { ...authHeaders(cfg), ...headers },
-    body,
-    // Basic auth is sent explicitly; avoid the browser native auth popup.
-    credentials: 'omit',
-    redirect: 'follow',
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+      method,
+      headers: { ...authHeaders(cfg), ...headers },
+      body,
+      // Basic auth is sent explicitly; avoid the browser native auth popup.
+      credentials: 'omit',
+      redirect: 'follow'
+    })
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('连接超时，请检查网络并重试')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Verify credentials + reachability. Returns { ok, status, message }.
@@ -44,21 +54,29 @@ export async function testConnection(cfg) {
   if (!cfg.url) return { ok: false, status: 0, message: '请填写服务器地址' }
   try {
     const res = await dav(cfg, 'PROPFIND', buildUrl(cfg), {
-      headers: { Depth: '0' },
+      headers: { Depth: '0' }
     })
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, status: res.status, message: '认证失败，请检查用户名/密码' }
+      return {
+        ok: false,
+        status: res.status,
+        message: '认证失败，请检查用户名/密码'
+      }
     }
     // 207 = multi-status (dir exists); 404 = auth ok but base dir missing yet.
     if (res.status === 207 || res.status === 404 || res.ok) {
       return { ok: true, status: res.status, message: '连接成功' }
     }
-    return { ok: false, status: res.status, message: `服务器返回 ${res.status}` }
+    return {
+      ok: false,
+      status: res.status,
+      message: `服务器返回 ${res.status}`
+    }
   } catch (e) {
     return {
       ok: false,
       status: 0,
-      message: '无法连接（可能是地址错误或 CORS 未开启）',
+      message: '无法连接（可能是地址错误或 CORS 未开启）'
     }
   }
 }
@@ -76,12 +94,13 @@ export async function ensureDirs(cfg) {
   await mkcol(cfg, buildUrl(cfg, 'books'))
   await mkcol(cfg, buildUrl(cfg, 'meta'))
   await mkcol(cfg, buildUrl(cfg, 'covers'))
+  await mkcol(cfg, buildUrl(cfg, 'deletions'))
 }
 
 export async function putFile(cfg, path, blob, contentType) {
   const res = await dav(cfg, 'PUT', buildUrl(cfg, ...path.split('/')), {
     headers: contentType ? { 'Content-Type': contentType } : {},
-    body: blob,
+    body: blob
   })
   if (!res.ok && res.status !== 204) {
     throw new Error(`PUT ${path} -> ${res.status}`)
@@ -97,7 +116,7 @@ export async function getFile(cfg, path) {
 
 export async function putJSON(cfg, path, obj) {
   const body = new Blob([JSON.stringify(obj, null, 2)], {
-    type: 'application/json',
+    type: 'application/json'
   })
   await putFile(cfg, path, body, 'application/json')
 }
@@ -139,4 +158,35 @@ export async function listDir(cfg, path = '') {
     names.push(p.split('/').pop())
   }
   return names
+}
+
+// Preserve HTTP validators so simultaneous devices cannot silently overwrite.
+export async function getVersionedJSON(cfg, path) {
+  const res = await dav(cfg, 'GET', buildUrl(cfg, ...path.split('/')))
+  if (res.status === 404) return { value: null, etag: null, missing: true }
+  if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`)
+  return {
+    value: await res.json(),
+    etag: res.headers.get('ETag'),
+    missing: false
+  }
+}
+export async function putVersionedJSON(cfg, path, value, version) {
+  if (!version.missing && !version.etag) {
+    throw new Error(
+      '服务器未提供可读取的 ETag，无法安全合并进度。请开启 ETag 和 CORS Expose-Headers: ETag。'
+    )
+  }
+  const res = await dav(cfg, 'PUT', buildUrl(cfg, ...path.split('/')), {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(version.missing
+        ? { 'If-None-Match': '*' }
+        : { 'If-Match': version.etag })
+    },
+    body: JSON.stringify(value)
+  })
+  if (res.status === 412) return false
+  if (!res.ok) throw new Error(`PUT ${path} -> ${res.status}`)
+  return true
 }

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body><div id="app"></div><script type="module">
+// Local-only QA entry; Vite's production build only includes index.html.
+import { hashBlob, putBook, getBook } from '../src/reader/db.js'
+const blob = await (await fetch('./fixtures/sample.epub')).blob()
+const id = await hashBlob(blob)
+if (!await getBook(id)) await putBook({ id, title: '阅读体验测试', name: 'sample.epub', author: '测试样书', blob, addedAt: Date.now(), size: blob.size })
+await import('../src/main.js')
+</script></body></html>

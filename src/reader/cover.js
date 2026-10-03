@@ -1,20 +1,11 @@
 // Extract the cover image from an EPUB file using JSZip.
 // Caches the extracted blob locally in the book record and on WebDAV.
 
-import JSZip from 'jszip'
-
-export function extFromMime(mime = '') {
-  const m = String(mime).toLowerCase()
-  if (m.includes('png')) return 'png'
-  if (m.includes('webp')) return 'webp'
-  if (m.includes('gif')) return 'gif'
-  if (m.includes('svg')) return 'svg'
-  if (m.includes('bmp')) return 'bmp'
-  return 'jpg'
-}
+export { extFromMime } from './mime.js'
 
 export async function extractCover(blob) {
   try {
+    const { default: JSZip } = await import('jszip')
     const zip = await JSZip.loadAsync(blob)
     const container = await zip.file('META-INF/container.xml')?.async('text')
     if (!container) return null
@@ -53,7 +44,9 @@ export async function extractCover(blob) {
         const type = i.getAttribute('media-type') || ''
         const href = (i.getAttribute('href') || '').toLowerCase()
         const id = (i.getAttribute('id') || '').toLowerCase()
-        return type.startsWith('image/') && (/cover/.test(id) || /cover/.test(href))
+        return (
+          type.startsWith('image/') && (/cover/.test(id) || /cover/.test(href))
+        )
       })
     }
 
@@ -73,5 +66,30 @@ export async function extractCover(blob) {
   } catch (e) {
     console.error('extract cover failed', e)
     return null
+  }
+}
+
+// Decode once and persist a small thumbnail rather than the original cover.
+export async function thumbnailCover(blob) {
+  const url = URL.createObjectURL(blob)
+  try {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    const scale = Math.min(
+      1,
+      320 / Math.max(image.naturalWidth, image.naturalHeight)
+    )
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
+    return (
+      (await new Promise((resolve) =>
+        canvas.toBlob(resolve, 'image/webp', 0.82)
+      )) || blob
+    )
+  } finally {
+    URL.revokeObjectURL(url)
   }
 }

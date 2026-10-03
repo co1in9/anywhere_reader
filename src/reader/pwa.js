@@ -36,6 +36,8 @@ export function registerServiceWorker() {
         new URL('sw.js', document.baseURI),
         { scope: './' }
       )
+      if (reg.waiting && navigator.serviceWorker.controller)
+        updateReady.value = true
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing
         if (!sw) return
@@ -51,12 +53,19 @@ export function registerServiceWorker() {
   })
 }
 
-export function applyUpdate() {
-  updateReady.value = false
-  navigator.serviceWorker?.getRegistration().then((reg) => {
-    reg?.waiting?.postMessage('skip-waiting')
+export async function applyUpdate() {
+  const reg = await navigator.serviceWorker?.getRegistration()
+  if (!reg?.waiting) {
     window.location.reload()
-  })
+    return
+  }
+  updateReady.value = false
+  navigator.serviceWorker.addEventListener(
+    'controllerchange',
+    () => window.location.reload(),
+    { once: true }
+  )
+  reg.waiting.postMessage('skip-waiting')
 }
 
 // Files opened through the OS ("open with" / file_handlers in the manifest).
@@ -65,7 +74,7 @@ export function onLaunchFiles(handler) {
   window.launchQueue.setConsumer(async (params) => {
     for (const fileHandle of params?.files || []) {
       try {
-        handler(await fileHandle.getFile())
+        await handler(await fileHandle.getFile())
       } catch (e) {
         console.warn('failed to open launched file', e)
       }

@@ -1,3 +1,5 @@
+import { notify, errorText } from './feedback.js'
+
 // localStorage helpers for reading preferences, per-book progress and the
 // WebDAV connection config. Progress is kept as a single map so it can be
 // merged with the remote `progress.json` during sync.
@@ -11,7 +13,7 @@ const DEFAULT_PREFS = {
   font: 'system',
   fontSize: 100, // percent
   lineHeight: 1.7, // unitless multiplier
-  layout: 'double', // 'double' (spread when wide enough) | 'single'
+  layout: 'double' // 'double' (spread when wide enough) | 'single'
 }
 
 export const DEFAULT_WEBDAV = {
@@ -19,7 +21,7 @@ export const DEFAULT_WEBDAV = {
   username: '',
   password: '',
   baseDir: '/anywhere-reader',
-  autoSync: true,
+  autoSync: true
 }
 
 function readJSON(key, fallback) {
@@ -34,17 +36,26 @@ function readJSON(key, fallback) {
 function writeJSON(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    /* storage unavailable — ignore */
+    return true
+  } catch (e) {
+    notify('保存失败：' + errorText(e))
+    return false
   }
 }
 
 export function loadPrefs() {
-  return { ...DEFAULT_PREFS, ...readJSON(PREFS_KEY, {}) }
+  const saved = { ...DEFAULT_PREFS, ...readJSON(PREFS_KEY, {}) }
+  return {
+    theme: ['light', 'sepia', 'dark', 'eink'].includes(saved.theme) ? saved.theme : DEFAULT_PREFS.theme,
+    font: ['system', 'pingfang', 'songti', 'heiti', 'kaiti'].includes(saved.font) ? saved.font : DEFAULT_PREFS.font,
+    layout: ['single', 'double'].includes(saved.layout) ? saved.layout : DEFAULT_PREFS.layout,
+    fontSize: Number.isFinite(saved.fontSize) ? Math.min(200, Math.max(60, saved.fontSize)) : DEFAULT_PREFS.fontSize,
+    lineHeight: Number.isFinite(saved.lineHeight) ? Math.min(2.6, Math.max(1.1, saved.lineHeight)) : DEFAULT_PREFS.lineHeight
+  }
 }
 
 export function savePrefs(prefs) {
-  writeJSON(PREFS_KEY, prefs)
+  return writeJSON(PREFS_KEY, prefs)
 }
 
 // ---- Reading progress (per book id) ----
@@ -54,7 +65,7 @@ export function loadAllProgress() {
 }
 
 export function saveAllProgress(map) {
-  writeJSON(PROGRESS_KEY, map)
+  return writeJSON(PROGRESS_KEY, map)
 }
 
 export function loadProgress(bookId) {
@@ -65,9 +76,14 @@ export function loadProgress(bookId) {
 export function saveProgress(bookId, { cfi, percentage }) {
   if (!bookId || !cfi) return
   const map = loadAllProgress()
-  map[bookId] = { cfi, percentage: percentage ?? 0, updatedAt: Date.now() }
-  saveAllProgress(map)
-  return map[bookId]
+  map[bookId] = {
+    ...map[bookId],
+    status: map[bookId]?.status === 'finished' ? 'finished' : 'reading',
+    cfi,
+    percentage: percentage ?? 0,
+    updatedAt: Math.max(Date.now(), (map[bookId]?.updatedAt || 0) + 1)
+  }
+  return saveAllProgress(map) ? map[bookId] : null
 }
 
 // ---- WebDAV config ----
@@ -77,5 +93,25 @@ export function loadWebDAVConfig() {
 }
 
 export function saveWebDAVConfig(cfg) {
-  writeJSON(WEBDAV_KEY, { ...DEFAULT_WEBDAV, ...cfg })
+  return writeJSON(WEBDAV_KEY, { ...DEFAULT_WEBDAV, ...cfg })
+}
+
+export function setReadingStatus(bookId, status) {
+  const map = loadAllProgress()
+  map[bookId] = { ...map[bookId], status, updatedAt: Date.now() }
+  return saveAllProgress(map)
+}
+export function loadBookmarks(bookId) {
+  return readJSON('anywhere-reader:bookmarks', {})[bookId] || []
+}
+export function saveBookmarks(bookId, entries) {
+  const map = readJSON('anywhere-reader:bookmarks', {})
+  map[bookId] = entries
+  return writeJSON('anywhere-reader:bookmarks', map)
+}
+export function loadAllBookmarks() {
+  return readJSON('anywhere-reader:bookmarks', {})
+}
+export function saveAllBookmarks(map) {
+  return writeJSON('anywhere-reader:bookmarks', map)
 }
