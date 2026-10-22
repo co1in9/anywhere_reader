@@ -93,6 +93,40 @@ bun run preview    # 本地预览生产构建
 - 在线访问：<https://co1in9.github.io/anywhere_reader/>
 - 工作流：`.github/workflows/deploy.yml`
 
+## Android APK
+
+在 Web 构建之外，使用 [Capacitor](https://capacitorjs.com/) 把同一份 `dist/` 打包为 Android 应用（`android/` 目录），不影响 Web / Pages 构建：
+
+- 推送 `v*` 标签（如 `git tag v1.0.0 && git push origin v1.0.0`）或在 Actions 页手动运行「Android APK」，会构建 APK 并上传到对应的 GitHub Release（不存在时自动创建）
+- 工作流：`.github/workflows/android.yml`；`versionName` 取标签去掉 `v`，`versionCode` 取运行序号
+- 应用内不注册 Service Worker（资源已打包在 APK 内）；导出备份会调用系统分享面板保存
+- WebDAV 同步同样需要服务器开启 CORS（来源为 `https://localhost`）
+
+### 签名
+
+在仓库 Settings → Secrets and variables → Actions 中配置以下 secrets 后使用正式签名；未配置时使用临时 debug 签名，新版本无法覆盖安装旧版本：
+
+| Secret | 说明 |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | keystore 文件的 base64（`base64 -w0 release.jks`） |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+| `ANDROID_KEY_ALIAS` | key 别名 |
+| `ANDROID_KEY_PASSWORD` | key 密码 |
+
+生成 keystore：`keytool -genkeypair -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias anywhere-reader`（请妥善备份，丢失后无法再发布可覆盖安装的更新）。
+
+### 本地构建
+
+需要 JDK 21 与 Android SDK（`ANDROID_HOME`）：
+
+```bash
+bun run build
+bunx cap sync android
+cd android && ./gradlew assembleRelease   # 输出 app/build/outputs/apk/release/app-release.apk
+```
+
+Android 启动图标与启动页同样由 `python tools/gen-icons.py` 生成。
+
 ## 技术栈
 
 | 用途        | 选型              |

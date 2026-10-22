@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { notify, errorText } from '../reader/feedback.js'
-import { canInstall, promptInstall } from '../reader/pwa.js'
+import { canInstall, promptInstall, isNativeApp } from '../reader/pwa.js'
 import logoUrl from '../assets/logo.png'
 
 const props = defineProps({
@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
         <p class="mt-2 text-xs text-zinc-600">
           备份包含书籍、进度、书签和阅读设置，不包含 WebDAV 密码。
         </p>
-        <p class="mt-2 text-xs text-zinc-600">
+        <p v-if="!isNativeApp" class="mt-2 text-xs text-zinc-600">
           iPhone / iPad：Safari 分享菜单 → 添加到主屏幕，即可安装。
         </p>
       </details>

@@ -118,7 +118,11 @@ export async function importBackup(file, onStatus = () => {}) {
   }
   return records.length
 }
-export function downloadBlob(blob, name) {
+export async function downloadBlob(blob, name) {
+  if (window.Capacitor?.isNativePlatform?.()) {
+    const { shareBlob } = await import('./native.js')
+    return shareBlob(blob, name)
+  }
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
