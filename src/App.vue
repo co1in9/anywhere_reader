@@ -29,11 +29,17 @@ import {
   saveWebDAVConfig
 } from './reader/storage.js'
 import { syncAll, pushProgress } from './reader/sync.js'
-import { onLaunchFiles, updateReady, applyUpdate } from './reader/pwa.js'
+import {
+  onLaunchFiles,
+  updateReady,
+  applyUpdate,
+  isNativeApp
+} from './reader/pwa.js'
 
 const books = ref([])
 const progress = ref({})
 const currentBook = ref(null)
+const reader = ref(null)
 const showSettings = ref(false)
 const removing = ref(null)
 const purging = ref(null)
@@ -287,12 +293,29 @@ function onStorage() {
 function onVisibility() {
   if (document.visibilityState === 'hidden') flushProgress()
 }
+// Android Back: dismiss dialogs, then leave the reader; exit only from the shelf.
+function onBack() {
+  if (purging.value) purging.value = null
+  else if (removing.value) removing.value = null
+  else if (showSettings.value) showSettings.value = false
+  else if (currentBook.value) {
+    if (!reader.value?.back()) closeBook()
+  } else return false
+  return true
+}
+let removeBackHandler = null
 onMounted(() => {
+  if (isNativeApp)
+    import('./reader/native.js')
+      .then(({ onBackButton }) => onBackButton(onBack))
+      .then((remove) => (removeBackHandler = remove))
+      .catch(report)
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('online', doSync)
   window.addEventListener('storage', onStorage)
 })
 onBeforeUnmount(() => {
+  removeBackHandler?.()
   clearTimeout(progressTimer)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', doSync)
@@ -336,6 +359,7 @@ function saveSettings(cfg) {
   <div class="h-full w-full">
     <ReaderView
       v-if="currentBook"
+      ref="reader"
       :book="currentBook"
       @close="closeBook"
       @meta="onMeta"

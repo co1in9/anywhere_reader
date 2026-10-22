@@ -412,6 +412,17 @@ function prev(event) {
   rendition.value?.prev()?.catch((e) => notify('翻页失败：' + errorText(e)))
 }
 
+// Android Back: close the topmost overlay; returns false when nothing was open.
+function back() {
+  if (externalLink.value) externalLink.value = ''
+  else if (settingsOpen.value) settingsOpen.value = false
+  else if (bookmarkOpen.value || searchOpen.value) closePanels()
+  else if (tocOpen.value && mobile.value) tocOpen.value = false
+  else return false
+  return true
+}
+defineExpose({ back })
+
 function onKeydown(e) {
   if (e.key === 'Escape') {
     tocOpen.value = false

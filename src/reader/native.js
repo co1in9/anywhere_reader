@@ -1,5 +1,6 @@
 // Android (Capacitor) helpers. Only loaded when running inside the native app,
 // so the web build never fetches this chunk.
+import { App } from '@capacitor/app'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 
@@ -42,4 +43,12 @@ export async function shareBlob(blob, name) {
   } catch (e) {
     if (!/cancel/i.test(e?.message || '')) throw e
   }
+}
+
+// Route the system Back button through `handler`; exit when it returns false.
+export async function onBackButton(handler) {
+  const listener = await App.addListener('backButton', () => {
+    if (!handler()) App.exitApp()
+  })
+  return () => listener.remove()
 }
