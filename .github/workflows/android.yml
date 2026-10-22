@@ -34,7 +34,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+          # git/ref returns an array of prefix matches when the exact tag is missing.
+          found=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" \
+            -q 'if type == "object" then .ref else empty end' 2>/dev/null || true)
+          if [ "$found" = "refs/tags/$TAG" ]; then
             echo "SOURCE_REF=refs/tags/$TAG" >> "$GITHUB_ENV"
           else
             echo "SOURCE_REF=$GITHUB_SHA" >> "$GITHUB_ENV"
