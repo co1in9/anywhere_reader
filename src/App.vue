@@ -206,7 +206,7 @@ async function backup() {
   try {
     const { exportBackup, downloadBlob } = await import('./reader/backup.js')
     const blob = await exportBackup((m) => (transfer.message = m))
-    downloadBlob(
+    await downloadBlob(
       blob,
       `anywhere-reader-${new Date().toISOString().slice(0, 10)}.zip`
     )

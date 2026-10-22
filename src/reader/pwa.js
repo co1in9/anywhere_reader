@@ -7,6 +7,9 @@ let deferredPrompt = null
 
 export const updateReady = ref(false)
 
+// True inside the Android (Capacitor) app, where the bridge injects `window.Capacitor`.
+export const isNativeApp = !!window.Capacitor?.isNativePlatform?.()
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
   deferredPrompt = e
@@ -27,9 +30,11 @@ export async function promptInstall() {
 }
 
 // The service worker lives in `public/` so its scope is the app root, which
-// keeps working when the site is served from a sub-path.
+// keeps working when the site is served from a sub-path. The Android app ships
+// its assets in the APK, so it neither needs nor registers one.
 export function registerServiceWorker() {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator) || isNativeApp)
+    return
   window.addEventListener('load', async () => {
     try {
       const reg = await navigator.serviceWorker.register(
