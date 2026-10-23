@@ -104,7 +104,7 @@ bun run preview    # 本地预览生产构建
 
 ### 签名
 
-在仓库 Settings → Secrets and variables → Actions 中配置以下 secrets 后使用正式签名；未配置时使用临时 debug 签名，新版本无法覆盖安装旧版本：
+CI 使用仓库 Settings → Secrets and variables → Actions 中的以下 secrets 进行正式签名；缺少任意一项时构建直接失败，不会发布无法覆盖安装的 APK（本地 `./gradlew assembleRelease` 未设置时仍使用 debug 签名）：
 
 | Secret | 说明 |
 | --- | --- |
