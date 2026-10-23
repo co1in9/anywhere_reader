@@ -680,8 +680,12 @@ watch(
 
 <template>
   <div
-    class="flex h-full flex-col"
-    :class="[theme.app, prefs.theme === 'eink' ? 'eink-mode' : '']"
+    class="safe-x flex h-full flex-col"
+    :class="[
+      theme.app,
+      prefs.theme === 'eink' ? 'eink-mode' : '',
+      toolbarVisible ? '' : 'reader-immersive'
+    ]"
   >
     <ConfirmDialog
       v-if="externalLink"
