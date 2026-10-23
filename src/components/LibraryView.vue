@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-full bg-zinc-50 text-zinc-800"
+    class="safe-x safe-bottom min-h-full bg-zinc-50 text-zinc-800"
     @dragover.prevent="dragging = true"
     @dragenter.prevent="dragging = true"
     @dragleave.prevent="dragging = false"
@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
   >
     <!-- Top bar -->
     <header
-      class="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur"
+      class="library-header sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 pb-3 backdrop-blur"
     >
       <img
         :src="logoUrl"
